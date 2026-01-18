@@ -20,13 +20,13 @@ get_split_orientation() {
     if [ $(((count) % 2)) -eq 0 ]; then
         echo "vertical"
     else
+
         echo "horizontal"
     fi
 }
-
 # Main monitoring loop
 main() {
-    log "Spiral Autotiling started (v5 - ignoring mass changes)"
+    log "Spiral Autotiling started - handles window add/remove"
     
     # Store all known window IDs across all workspaces
     local known_windows=""
@@ -35,32 +35,47 @@ main() {
         # Get ALL window IDs across all workspaces
         local current_windows=$(aerospace list-windows --all 2>/dev/null | awk '{print $1}' | sort)
         
-        # Find newly created windows (in current but not in known)
+        # Find newly created and destroyed windows
         if [ -n "$known_windows" ]; then
             local new_windows=$(comm -13 <(echo "$known_windows") <(echo "$current_windows"))
+            local removed_windows=$(comm -23 <(echo "$known_windows") <(echo "$current_windows"))
             
-            # Count how many new windows appeared
+            # Handle new windows
             if [ -n "$new_windows" ]; then
                 local new_count=$(echo "$new_windows" | grep -c .)
                 
-                # Only apply split if 1 windows appeared (not a mass event)
-                # Mass events (2+ windows) are likely display reconnection
+                # Only apply split if 1 window appeared (not a mass event)
                 if [ "$new_count" -le 1 ]; then
                     local focused_ws=$(aerospace list-workspaces --focused 2>/dev/null)
                     local win_count=$(aerospace list-windows --workspace "$focused_ws" 2>/dev/null | wc -l | tr -d ' ')
                     
-                    log "Detected $new_count new window(s) - workspace $focused_ws has $win_count total windows"
+                    log "Window added - workspace $focused_ws has $win_count total"
                     
-                    # Determine split orientation based on count
                     local orientation=$(get_split_orientation "$win_count")
-                    log "Applying $orientation split"
-                    
-                    # Set the split orientation for the next window placement
-                    aerospace split "$orientation" 2>&1 | head -1 | while read line; do
-                        log "Split result: $line"
-                    done
+                    log "Setting $orientation split"
+                    aerospace split "$orientation" 2>/dev/null
                 else
-                    log "Mass change detected ($new_count windows) - ignoring (likely display reconnection)"
+                    log "Mass add ($new_count windows) - ignoring"
+                fi
+            fi
+            
+            # Handle removed windows
+            if [ -n "$removed_windows" ]; then
+                local removed_count=$(echo "$removed_windows" | grep -c .)
+                
+                if [ "$removed_count" -le 2 ]; then
+                    local focused_ws=$(aerospace list-workspaces --focused 2>/dev/null)
+                    local win_count=$(aerospace list-windows --workspace "$focused_ws" 2>/dev/null | wc -l | tr -d ' ')
+                    
+                    log "Window removed - workspace $focused_ws has $win_count remaining"
+                    
+                    if [ "$win_count" -ge 2 ]; then
+                        local orientation=$(get_split_orientation "$win_count")
+                        log "Setting $orientation split"
+                        aerospace split "$orientation" 2>/dev/null
+                    fi
+                else
+                    log "Mass removal ($removed_count windows) - ignoring"
                 fi
             fi
         else
