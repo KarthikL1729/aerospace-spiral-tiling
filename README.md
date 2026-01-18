@@ -18,11 +18,11 @@ Add an exec and forget in the toml config:
 
 after-startup-command = [
     ...
-  'exec-and-forget ~/.config/aerospace/spiral_tiling.sh'
+  'exec-and-forget ~/aerospace-spiral-tiling/spiral_tiling.sh'
     ...
 ]
 ```
 
-and restart aerospace. It won't automatically tile the windows that are already open spirally, since it is static tiling based on window changes.
+and restart aerospace. It won't automatically tile the windows that are already open spirally, since it is static tiling based on window changes. It also won't spiral tile when 2 or more windows open simultaneously.
 
 ---
